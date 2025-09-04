@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>natario.com - Calculadora de tempo para locução</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; min-height: 100vh; background: #f5f5f5; color: #333; }
+header { padding: 2rem 1rem 1rem 1rem; text-align: center; font-size: 1.9rem; font-weight: bold; }
+main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 1rem; gap: 1rem; width: 100%; max-width: 700px; margin: 0 auto; }
+textarea { width: 100%; min-height: 300px; max-height: none; padding: 10px; border: 1px solid #ccc; border-radius: 8px; resize: vertical; font-size: 1rem; }
+.buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%; }
+button { flex: 1; padding: 0.5rem 1rem; border: none; border-radius: 6px; background-color: #007bff; color: white; font-size: 1rem; cursor: pointer; }
+button:hover { background-color: #0056b3; }
+.results { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; width: 100%; }
+.box { background: white; border: 1px solid #ddd; border-radius: 12px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.3s ease, color 0.3s ease; }
+.box#normal { background-color: white; color: #333; }
+.label { font-weight: bold; display: block; margin-bottom: 0.5rem; }
+.value { font-size: 1.8rem; font-weight: bold; line-height: 1.2; }
+.total-segundos { font-weight: normal; display: block; margin-top: 0.3rem; font-size: 0.85rem; color: #555; }
+footer { text-align: center; padding: 0.5rem; font-size: 0.9rem; background: #f1f1f1; border-top: 1px solid #ddd; }
+footer a { margin-left: 5px; cursor: pointer; color: blue; text-decoration: underline; }
+body.dark-mode { background-color: #121212; color: #f5f5f5; }
+body.dark-mode textarea { background-color: #1e1e1e; color: #fff; border: 1px solid #444; }
+body.dark-mode .box { background-color: #1e1e1e; border: 1px solid #444; color: #fff; }
+body.dark-mode footer { color: #ccc; }
+body.dark-mode .buttons button { background-color: #333; color: #fff; border: 1px solid #555; }
+body.dark-mode .buttons button:hover { background-color: #555; }
+</style>
+</head>
+<body>
+<header>natario.com - Calculadora de tempo para locução</header>
+<main>
+<textarea id="texto" placeholder="Digite ou cole seu texto aqui..."></textarea>
+<div class="buttons">
+<button type="button" id="converter">Converter números em texto</button>
+<button type="button" id="caixaAlta">Deixar tudo em caixa alta</button>
+<button type="button" id="teleprompter">Colocar marcações para teleprompter</button>
+<button type="button" id="copiar">Copiar texto</button>
+</div>
+<div class="results">
+<div class="box" id="pausada">
+<span class="label">Leitura pausada</span>
+<span class="value">00:00</span>
+<span class="total-segundos"></span>
+</div>
+<div class="box" id="normal">
+<span class="label">Leitura normal</span>
+<span class="value">00:00</span>
+<span class="total-segundos"></span>
+</div>
+<div class="box" id="rapida">
+<span class="label">Leitura rápida</span>
+<span class="value">00:00</span>
+<span class="total-segundos"></span>
+</div>
+</div>
+</main>
+<footer>
+<span id="contador">Palavras: 0 | Caracteres: 0</span> | <a id="toggleMode">Ativar modo escuro</a>
+</footer>
+<script>
+const texto = document.getElementById("texto");
+const normalBox = document.getElementById("normal");
+const normal = normalBox.querySelector(".value");
+const pausada = document.getElementById("pausada").querySelector(".value");
+const rapida = document.getElementById("rapida").querySelector(".value");
+const totalPausada = document.getElementById("pausada").querySelector(".total-segundos");
+const totalNormal = normalBox.querySelector(".total-segundos");
+const totalRapida = document.getElementById("rapida").querySelector(".total-segundos");
+const contador = document.getElementById("contador");
+
+function calcularTempo(){
+  const conteudo=texto.value.trim();
+  const palavras=conteudo.split(/\s+/).filter(Boolean);
+  const numPalavras=palavras.length;
+  const numCaracteres=conteudo.length;
+  const velPausada=130;
+  const velNormal=145;
+  const velRapida=180;
+
+  function formatarTempo(totalSegundos){
+    const horas=Math.floor(totalSegundos/3600);
+    const min=Math.floor((totalSegundos%3600)/60);
+    const seg=Math.round(totalSegundos%60);
+    if(horas>0) return `${String(horas).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
+    else return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
+  }
+
+  function calcularSegundos(totalSegundos){ return `(${Math.round(totalSegundos)} segundos)`; }
+
+  const tempoNormal=numPalavras/velNormal*60;
+  const tempoPausada=numPalavras/velPausada*60;
+  const tempoRapida=numPalavras/velRapida*60;
+
+  normal.textContent=formatarTempo(tempoNormal);
+  pausada.textContent=formatarTempo(tempoPausada);
+  rapida.textContent=formatarTempo(tempoRapida);
+  totalPausada.textContent=calcularSegundos(tempoPausada);
+  totalNormal.textContent=calcularSegundos(tempoNormal);
+  totalRapida.textContent=calcularSegundos(tempoRapida);
+  contador.textContent=`Palavras: ${numPalavras} | Caracteres: ${numCaracteres}`;
+
+  if(numPalavras === 0){
+    normalBox.style.backgroundColor = 'white';
+    normalBox.style.color = '#000';
+  } else {
+    normalBox.style.backgroundColor = '#00ff00'; // verde puro
+    normalBox.style.color = '#000'; // texto preto
+  }
+}
+
+texto.addEventListener("input", calcularTempo);
+texto.addEventListener("paste", ()=>{ setTimeout(()=>{ calcularTempo(); },50); });
+
+document.getElementById('converter').addEventListener('click', ()=>{
+  let txt = texto.value;
+  txt = txt.replace(/%/g,' porcento');
+  txt = txt.replace(/\b\d+\b/g, n=>n.split('').map(d=>'zero um dois três quatro cinco seis sete oito nove'.split(' ')[d]).join(' '));
+  texto.value = txt;
+  calcularTempo();
+});
+
+document.getElementById('caixaAlta').addEventListener('click', ()=>{
+  texto.value = texto.value.toUpperCase();
+  calcularTempo();
+});
+
+document.getElementById('teleprompter').addEventListener('click', ()=>{
+  let txt = texto.value;
+  txt = txt.replace(/(\D),(\D)/g, '$1,/$2');
+  txt = txt.replace(/(\D)\./g, '$1.//');
+  texto.value = txt;
+  calcularTempo();
+});
+
+document.getElementById('copiar').addEventListener('click', ()=>{
+  texto.select();
+  navigator.clipboard.writeText(texto.value);
+  alert('Texto copiado para a área de transferência!');
+});
+
+document.getElementById('toggleMode').addEventListener('click', ()=>{
+  document.body.classList.toggle('dark-mode');
+  const link = document.getElementById('toggleMode');
+  if(document.body.classList.contains('dark-mode')){
+    link.textContent = 'Desativar modo escuro';
+  } else {
+    link.textContent = 'Ativar modo escuro';
+  }
+});
+</script>
+</body>
+</html>
