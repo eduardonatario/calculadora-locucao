@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>natario.com - Calculadora de tempo para locução</title>
+<style>
+  /* Layout principal */
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+    max-width: 630px;            /* <-- largura máxima solicitada */
+    background: #f5f5f5;
+    color: #333;
+    padding: 24px;
+    box-sizing: border-box;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 1.5rem 0 0.5rem 0;
+    text-align: center;
+    font-size: 1.6rem; /* conforme pedido antes */
+    font-weight: bold;
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    resize: vertical; /* permitir redimensionar verticalmente */
+    font-size: 1rem;
+    box-sizing: border-box;
+    background: #fff;
+    color: #000;
+  }
+
+  .buttons {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .buttons button {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    background-color: #007bff;
+    color: #fff;
+    font-size: 0.98rem;
+    cursor: pointer;
+  }
+  .buttons button:hover { background-color: #0056b3; }
+
+  /* Boxes de resultado alinhados em uma linha */
+  .results {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.9rem;
+    width: 100%;
+  }
+
+  .box {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    transition: background-color .25s ease, color .25s ease;
+  }
+
+  .box#normal { background: white; color: #333; }
+
+  .label { display:block; font-weight:700; margin-bottom:0.4rem; }
+  .value { font-size: 1.8rem; font-weight:700; line-height:1.1; display:block; }
+  .total-segundos { display:block; margin-top:0.4rem; font-size:0.85rem; color:#555; }
+
+  footer {
+    text-align:center;
+    padding:0.6rem;
+    font-size:0.9rem;
+    background:#f1f1f1;
+    border-top:1px solid #ddd;
+    margin-top: 10px;
+  }
+  footer a { margin-left:6px; color:blue; text-decoration:underline; cursor:pointer; }
+
+  /* modo escuro */
+  body.dark-mode {
+    background: #121212;
+    color: #f5f5f5;
+  }
+  body.dark-mode textarea {
+    background: #1e1e1e;
+    color: #fff;
+    border: 1px solid #444;
+  }
+  body.dark-mode .box {
+    background: #1e1e1e;
+    border: 1px solid #444;
+    color: #fff;
+  }
+  body.dark-mode .buttons button {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+  }
+  body.dark-mode .buttons button:hover { background:#555; }
+
+  /* destaque do box normal quando ativo */
+  .box.highlight {
+    background-color: #00ff00 !important;
+    color: #000 !important;
+  }
+
+  @media (max-width: 520px) {
+    /* em telas muito pequenas, empilha os boxes mas mantém a largura do container */
+    .results { grid-template-columns: 1fr; }
+    .buttons { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+  <header>natario.com - Calculadora de tempo para locução</header>
+
+  <main>
+    <textarea id="texto" placeholder="Digite ou cole seu texto aqui..."></textarea>
+
+    <div class="buttons">
+      <button type="button" id="converter">Converter números em texto</button>
+      <button type="button" id="caixaAlta">Deixar tudo em caixa alta</button>
+      <button type="button" id="teleprompter">Colocar marcações para teleprompter</button>
+      <button type="button" id="copiar">Copiar texto</button>
+    </div>
+
+    <div class="results" aria-live="polite">
+      <div class="box" id="pausada">
+        <span class="label">Leitura pausada</span>
+        <span class="value">00:00</span>
+        <span class="total-segundos">(0 segundos)</span>
+      </div>
+
+      <div class="box" id="normal">
+        <span class="label">Leitura normal</span>
+        <span class="value">00:00</span>
+        <span class="total-segundos">(0 segundos)</span>
+      </div>
+
+      <div class="box" id="rapida">
+        <span class="label">Leitura rápida</span>
+        <span class="value">00:00</span>
+        <span class="total-segundos">(0 segundos)</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span id="contador">Palavras: 0 | Caracteres: 0</span> | <a id="toggleMode">Ativar modo escuro</a>
+  </footer>
+
+<script>
+/* elementos */
+const texto = document.getElementById('texto');
+const boxPausada = document.getElementById('pausada');
+const boxNormal = document.getElementById('normal');
+const boxRapida = document.getElementById('rapida');
+
+const valuePausada = boxPausada.querySelector('.value');
+const valueNormal = boxNormal.querySelector('.value');
+const valueRapida = boxRapida.querySelector('.value');
+
+const segundosPausada = boxPausada.querySelector('.total-segundos');
+const segundosNormal = boxNormal.querySelector('.total-segundos');
+const segundosRapida = boxRapida.querySelector('.total-segundos');
+
+const contador = document.getElementById('contador');
+const btnConverter = document.getElementById('converter');
+const btnCaixaAlta = document.getElementById('caixaAlta');
+const btnTeleprompter = document.getElementById('teleprompter');
+const btnCopiar = document.getElementById('copiar');
+const toggleMode = document.getElementById('toggleMode');
+
+/* velocidades (palavras por minuto) */
+const velPausada = 130;   // leitura calma
+const velNormal = 145;    // leitura média
+const velRapida = 180;    // leitura dinâmica
+
+/* formatação tempo - retorna string "MM:SS" ou "HH:MM:SS" se necessário */
+function formatarTempo(totalSegundos) {
+  totalSegundos = Math.round(totalSegundos);
+  const horas = Math.floor(totalSegundos / 3600);
+  const minutos = Math.floor((totalSegundos % 3600) / 60);
+  const segundos = totalSegundos % 60;
+  if (horas > 0) {
+    return `${String(horas).padStart(2,'0')}:${String(minutos).padStart(2,'0')}:${String(segundos).padStart(2,'0')}`;
+  } else {
+    return `${String(minutos).padStart(2,'0')}:${String(segundos).padStart(2,'0')}`;
+  }
+}
+
+/* calcula e atualiza os tempos e contadores */
+function calcularTempo() {
+  const conteudo = texto.value.trim();
+  const palavrasArr = conteudo.length ? conteudo.split(/\s+/).filter(Boolean) : [];
+  const numPalavras = palavrasArr.length;
+  const numCaracteres = conteudo.length;
+
+  // tempo em segundos: palavras / (ppm / 60)
+  const tempoSegNormal = numPalavras / (velNormal / 60);
+  const tempoSegPausada = numPalavras / (velPausada / 60);
+  const tempoSegRapida = numPalavras / (velRapida / 60);
+
+  valueNormal.textContent = formatarTempo(tempoSegNormal);
+  valuePausada.textContent = formatarTempo(tempoSegPausada);
+  valueRapida.textContent = formatarTempo(tempoSegRapida);
+
+  segundosNormal.textContent = `(${Math.round(tempoSegNormal)} segundos)`;
+  segundosPausada.textContent = `(${Math.round(tempoSegPausada)} segundos)`;
+  segundosRapida.textContent = `(${Math.round(tempoSegRapida)} segundos)`;
+
+  contador.textContent = `Palavras: ${numPalavras} | Caracteres: ${numCaracteres}`;
+
+  // destaque do box normal quando houver texto; volta ao normal quando vazio
+  if (numPalavras === 0) {
+    boxNormal.classList.remove('highlight');
+    boxNormal.style.backgroundColor = '';
+    boxNormal.style.color = '';
+  } else {
+    boxNormal.classList.add('highlight');
+    // highlight usa CSS .highlight que define #00ff00
+  }
+}
+
+/* eventos para recalcular automaticamente */
+texto.addEventListener('input', calcularTempo);
+texto.addEventListener('paste', () => setTimeout(calcularTempo, 50));
+
+/* BOTÕES */
+
+/* Converter números em texto (simples) */
+btnConverter.addEventListener('click', () => {
+  let txt = texto.value;
+
+  // % -> "porcento"
+  txt = txt.replace(/%/g, ' porcento');
+
+  // Caso: números com vírgula entre dígitos (ex: 8,1) -> "8 vírgula 1" (cada parte convertida)
+  txt = txt.replace(/(\d+),(\d+)/g, (m, a, b) => `${a} vírgula ${b}`);
+
+  // Converter números inteiros (simplesmente por extenso parcialmente; implementa até milhares)
+  // Primeiro trata formatação BR (milhares com ponto) -> remove pontos para parse
+  txt = txt.replace(/(\d{1,3}(?:\.\d{3})+)/g, match => match.replace(/\./g, ''));
+
+  // converte números inteiros (0..9999) para palavras básicas em PT-BR
+  txt = txt.replace(/\b\d+\b/g, (match) => numeroPorExtenso(parseInt(match, 10)));
+
+  texto.value = txt;
+  calcularTempo();
+});
+
+/* caixa alta */
+btnCaixaAlta.addEventListener('click', () => {
+  texto.value = texto.value.toUpperCase();
+  calcularTempo();
+});
+
+/* teleprompter: substituir vírgulas e pontos mantendo numerais */
+btnTeleprompter.addEventListener('click', () => {
+  let txt = texto.value;
+
+  // proteger números com vírgula e ponto usando marcador temporário
+  txt = txt.replace(/(\d+),(\d+)/g, '$1§COMAV§$2'); // vírgula entre dígitos
+  txt = txt.replace(/(\d+)\.(\d+)/g, '$1§PONTOV§$2'); // ponto entre dígitos
+
+  // substituir vírgula (entre palavras) por ",/" mantendo a vírgula
+  txt = txt.replace(/,/g, ',/');
+
+  // substituir ponto final por ".//" (manter o ponto)
+  txt = txt.replace(/\./g, './/');
+
+  // restaurar números protegidos
+  txt = txt.replace(/§COMAV§/g, ',');
+  txt = txt.replace(/§PONTOV§/g, '.');
+
+  texto.value = txt;
+  calcularTempo();
+});
+
+/* copiar para área de transferência */
+btnCopiar.addEventListener('click', () => {
+  // usar clipboard API (assíncrono)
+  navigator.clipboard.writeText(texto.value).then(() => {
+    // opcional: feedback visual (alert)
+    alert('Texto copiado para a área de transferência!');
+  }).catch(() => {
+    // fallback: selecionar e copiar
+    texto.select();
+    document.execCommand('copy');
+    alert('Texto copiado (método fallback).');
+  });
+});
+
+/* toggle modo escuro */
+toggleMode.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+  toggleMode.textContent = document.body.classList.contains('dark-mode') ? 'Desativar modo escuro' : 'Ativar modo escuro';
+});
+
+/* Função auxiliar: converter número em extenso (simples, cobre 0..9999 com português BR) */
+function numeroPorExtenso(num) {
+  if (isNaN(num)) return num;
+  const unidades = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove'];
+  const especiais = ['dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const dezenas = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const centenas = ['','cem','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+
+  if (num < 10) return unidades[num];
+  if (num < 20) return especiais[num - 10];
+  if (num < 100) {
+    const d = Math.floor(num / 10);
+    const u = num % 10;
+    return d >= 2 ? dezenas[d] + (u ? ' e ' + unidades[u] : '') : unidades[num];
+  }
+  if (num === 100) return 'cem';
+  if (num < 1000) {
+    const c = Math.floor(num / 100);
+    const resto = num % 100;
+    return centenas[c] + (resto ? ' e ' + numeroPorExtenso(resto) : '');
+  }
+  if (num === 1000) return 'mil';
+  if (num < 10000) {
+    const mil = Math.floor(num / 1000);
+    const resto = num % 1000;
+    return numeroPorExtenso(mil) + ' mil' + (resto ? ' e ' + numeroPorExtenso(resto) : '');
+  }
+  // para números maiores, retorna o número original como fallback
+  return String(num);
+}
+
+/* inicializa com cálculo zero */
+calcularTempo();
+</script>
+</body>
+</html>
